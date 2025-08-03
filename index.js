@@ -71,14 +71,54 @@ client.on('messageCreate', async (message) => {
 });
 
 // Обработчик готовности бота
-client.on('ready', () => {
+client.on('ready', async () => {
   console.log(`Бот ${client.user.tag} успешно запущен!`);
   console.log(`Отслеживаемый канал: ${CHANNEL_ID}`);
+  
+  // Отправляем уведомление в Telegram о запуске бота
+  try {
+    const startupMessage = `🚀 Discord бот успешно запущен!\n\n📋 Информация:\n• Бот: ${client.user.tag}\n• Канал: ${CHANNEL_ID}\n• Время запуска: ${new Date().toLocaleString('ru-RU')}\n\n✅ Бот готов к работе и отслеживает сообщения!`;
+    
+    await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      chat_id: TELEGRAM_CHAT_ID,
+      text: startupMessage,
+      parse_mode: 'HTML'
+    });
+    
+    console.log('Уведомление о запуске отправлено в Telegram');
+  } catch (error) {
+    console.error('Ошибка при отправке уведомления о запуске в Telegram:', error.message);
+  }
 });
 
 // Обработчик ошибок
 client.on('error', (error) => {
   console.error('Ошибка Discord клиента:', error);
+});
+
+// Обработчик переподключения
+client.on('reconnecting', () => {
+  console.log('Переподключение к Discord...');
+});
+
+// Обработчик восстановления соединения
+client.on('resume', async (replayed) => {
+  console.log(`Соединение восстановлено. Переиграно ${replayed} событий.`);
+  
+  // Отправляем уведомление о восстановлении соединения
+  try {
+    const reconnectMessage = `🔄 Соединение с Discord восстановлено!\n\n⏰ Время: ${new Date().toLocaleString('ru-RU')}\n📊 Переиграно событий: ${replayed}\n\n✅ Бот снова работает!`;
+    
+    await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      chat_id: TELEGRAM_CHAT_ID,
+      text: reconnectMessage,
+      parse_mode: 'HTML'
+    });
+    
+    console.log('Уведомление о восстановлении соединения отправлено в Telegram');
+  } catch (error) {
+    console.error('Ошибка при отправке уведомления о восстановлении в Telegram:', error.message);
+  }
 });
 
 // Обработчик завершения процесса
