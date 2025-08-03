@@ -6,6 +6,8 @@
 
 - Отслеживает сообщения в указанном Discord канале
 - Пересылает новые сообщения в Telegram чат
+- **Отслеживает сообщения от ботов и пользователей**
+- Возможность фильтрации по конкретным ботам
 - Обрабатывает ошибки и логирует события
 - Готов к развертыванию на Railway
 
@@ -45,6 +47,7 @@ DISCORD_TOKEN=your_discord_bot_token_here
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
 TELEGRAM_CHAT_ID=your_telegram_chat_id_here
 CHANNEL_ID=your_discord_channel_id_here
+ALLOWED_BOTS=PolyAlert БОТ,AnotherBot
 ```
 
 ## Локальная разработка

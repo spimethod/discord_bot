@@ -16,6 +16,9 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const CHANNEL_ID = process.env.CHANNEL_ID || 'ID_КАНАЛА_new-polymarkets';
 
+// Список разрешенных ботов (опционально, оставьте пустым для всех ботов)
+const ALLOWED_BOTS = process.env.ALLOWED_BOTS ? process.env.ALLOWED_BOTS.split(',') : [];
+
 // Проверка наличия необходимых переменных окружения
 if (!DISCORD_TOKEN) {
   console.error('Ошибка: DISCORD_TOKEN не установлен в переменных окружения');
@@ -37,11 +40,21 @@ console.log('Discord бот запускается...');
 // Обработчик новых сообщений
 client.on('messageCreate', async (message) => {
   try {
-    // Проверяем, что сообщение из нужного канала и не от бота
-    if (message.channelId === CHANNEL_ID && !message.author.bot) {
-      console.log(`Новое сообщение от ${message.author.username}: ${message.content}`);
+    // Проверяем, что сообщение из нужного канала
+    if (message.channelId === CHANNEL_ID) {
+      const authorType = message.author.bot ? 'БОТ' : 'ПОЛЬЗОВАТЕЛЬ';
       
-      const text = `🔔 Новое сообщение:\n${message.content}`;
+      // Если указан список разрешенных ботов, проверяем автора
+      if (message.author.bot && ALLOWED_BOTS.length > 0) {
+        if (!ALLOWED_BOTS.includes(message.author.username)) {
+          console.log(`Сообщение от бота ${message.author.username} пропущено (не в списке разрешенных)`);
+          return;
+        }
+      }
+      
+      console.log(`Новое сообщение от ${authorType} ${message.author.username}: ${message.content}`);
+      
+      const text = `🔔 Новое сообщение от ${authorType} ${message.author.username}:\n${message.content}`;
       
       // Отправляем сообщение в Telegram
       await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
