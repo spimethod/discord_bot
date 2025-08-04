@@ -1,5 +1,6 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 const axios = require('axios');
+const http = require('http');
 require('dotenv').config();
 
 const client = new Client({ 
@@ -36,6 +37,32 @@ if (!TELEGRAM_CHAT_ID) {
 }
 
 console.log('Discord бот запускается...');
+
+// Keep-alive механизм для Railway
+let keepAliveInterval;
+const startKeepAlive = () => {
+  keepAliveInterval = setInterval(() => {
+    console.log('🔄 Keep-alive: бот работает...', new Date().toLocaleString('ru-RU'));
+  }, 300000); // Каждые 5 минут
+};
+
+const stopKeepAlive = () => {
+  if (keepAliveInterval) {
+    clearInterval(keepAliveInterval);
+    console.log('Keep-alive остановлен');
+  }
+};
+
+// Простой HTTP сервер для health check
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Discord Bot is running!');
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`HTTP сервер запущен на порту ${PORT}`);
+});
 
 // Обработчик новых сообщений
 client.on('messageCreate', async (message) => {
@@ -74,6 +101,10 @@ client.on('messageCreate', async (message) => {
 client.on('ready', async () => {
   console.log(`Бот ${client.user.tag} успешно запущен!`);
   console.log(`Отслеживаемый канал: ${CHANNEL_ID}`);
+  
+  // Запускаем keep-alive механизм
+  startKeepAlive();
+  console.log('Keep-alive механизм запущен');
   
   // Отправляем уведомление в Telegram о запуске бота
   try {
@@ -122,16 +153,39 @@ client.on('resume', async (replayed) => {
 });
 
 // Обработчик завершения процесса
-process.on('SIGINT', () => {
-  console.log('Завершение работы бота...');
-  client.destroy();
+process.on('SIGINT', async () => {
+  console.log('Получен сигнал SIGINT, завершение работы бота...');
+  stopKeepAlive();
+  try {
+    await client.destroy();
+    console.log('Бот успешно отключен');
+  } catch (error) {
+    console.error('Ошибка при отключении бота:', error);
+  }
   process.exit(0);
 });
 
-process.on('SIGTERM', () => {
-  console.log('Завершение работы бота...');
-  client.destroy();
+process.on('SIGTERM', async () => {
+  console.log('Получен сигнал SIGTERM, завершение работы бота...');
+  stopKeepAlive();
+  try {
+    await client.destroy();
+    console.log('Бот успешно отключен');
+  } catch (error) {
+    console.error('Ошибка при отключении бота:', error);
+  }
   process.exit(0);
+});
+
+// Обработчик необработанных исключений
+process.on('uncaughtException', (error) => {
+  console.error('Необработанное исключение:', error);
+  // Не завершаем процесс, даем возможность восстановиться
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Необработанное отклонение промиса:', reason);
+  // Не завершаем процесс, даем возможность восстановиться
 });
 
 // Подключение к Discord
