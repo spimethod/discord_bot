@@ -11,6 +11,12 @@ const client = new Client({
   ] 
 });
 
+console.log('🔧 Настроенные интенты:', [
+  'Guilds',
+  'GuildMessages', 
+  'MessageContent'
+].join(', '));
+
 // Конфигурация из переменных окружения
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -67,19 +73,23 @@ server.listen(PORT, () => {
 // Обработчик новых сообщений
 client.on('messageCreate', async (message) => {
   try {
+    console.log(`📨 Получено сообщение: канал=${message.channelId}, автор=${message.author.username}, бот=${message.author.bot}`);
+    
     // Проверяем, что сообщение из нужного канала
     if (message.channelId === CHANNEL_ID) {
+      console.log(`✅ Сообщение из отслеживаемого канала!`);
+      
       const authorType = message.author.bot ? 'БОТ' : 'ПОЛЬЗОВАТЕЛЬ';
       
       // Если указан список разрешенных ботов, проверяем автора
       if (message.author.bot && ALLOWED_BOTS.length > 0) {
         if (!ALLOWED_BOTS.includes(message.author.username)) {
-          console.log(`Сообщение от бота ${message.author.username} пропущено (не в списке разрешенных)`);
+          console.log(`❌ Сообщение от бота ${message.author.username} пропущено (не в списке разрешенных)`);
           return;
         }
       }
       
-      console.log(`Новое сообщение от ${authorType} ${message.author.username}: ${message.content}`);
+      console.log(`🎯 Обрабатываем сообщение от ${authorType} ${message.author.username}: ${message.content.substring(0, 100)}...`);
       
       const text = `🔔 Новое сообщение от ${authorType} ${message.author.username}:\n${message.content}`;
       
@@ -90,10 +100,12 @@ client.on('messageCreate', async (message) => {
         parse_mode: 'HTML'
       });
       
-      console.log('Сообщение успешно отправлено в Telegram');
+      console.log('✅ Сообщение успешно отправлено в Telegram');
+    } else {
+      console.log(`❌ Сообщение не из отслеживаемого канала (ожидали: ${CHANNEL_ID}, получили: ${message.channelId})`);
     }
   } catch (error) {
-    console.error('Ошибка при обработке сообщения:', error.message);
+    console.error('❌ Ошибка при обработке сообщения:', error.message);
   }
 });
 
@@ -101,6 +113,19 @@ client.on('messageCreate', async (message) => {
 client.on('ready', async () => {
   console.log(`Бот ${client.user.tag} успешно запущен!`);
   console.log(`Отслеживаемый канал: ${CHANNEL_ID}`);
+  
+  // Проверяем доступ к каналу
+  try {
+    const channel = await client.channels.fetch(CHANNEL_ID);
+    if (channel) {
+      console.log(`✅ Канал найден: ${channel.name} (${channel.type})`);
+      console.log(`📊 Права бота в канале: ${channel.permissionsFor(client.user).toArray().join(', ')}`);
+    } else {
+      console.log(`❌ Канал с ID ${CHANNEL_ID} не найден`);
+    }
+  } catch (error) {
+    console.error(`❌ Ошибка при проверке канала: ${error.message}`);
+  }
   
   // Запускаем keep-alive механизм
   startKeepAlive();
@@ -150,6 +175,23 @@ client.on('resume', async (replayed) => {
   } catch (error) {
     console.error('Ошибка при отправке уведомления о восстановлении в Telegram:', error.message);
   }
+});
+
+// Обработчик всех событий для диагностики
+client.on('raw', (packet) => {
+  if (packet.t === 'MESSAGE_CREATE') {
+    console.log(`🔍 Raw MESSAGE_CREATE событие получено: канал=${packet.d.channel_id}`);
+  }
+});
+
+// Обработчик подключения к серверу
+client.on('guildCreate', (guild) => {
+  console.log(`📥 Бот добавлен на сервер: ${guild.name} (${guild.id})`);
+});
+
+// Обработчик удаления с сервера
+client.on('guildDelete', (guild) => {
+  console.log(`📤 Бот удален с сервера: ${guild.name} (${guild.id})`);
 });
 
 // Обработчик завершения процесса
