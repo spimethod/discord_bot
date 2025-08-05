@@ -109,6 +109,29 @@ client.on('messageCreate', async (message) => {
   }
 });
 
+// Альтернативный обработчик для всех сообщений (если основной не работает)
+client.on('messageCreate', async (message) => {
+  try {
+    // Проверяем, что это сообщение от PolyAlert БОТ в любом канале
+    if (message.author.username === 'PolyAlert БОТ' && message.content.includes('New Market:')) {
+      console.log(`🎯 Найдено сообщение от PolyAlert БОТ в канале ${message.channelId}: ${message.content.substring(0, 100)}...`);
+      
+      const text = `🔔 Новое сообщение от БОТ ${message.author.username}:\n${message.content}`;
+      
+      // Отправляем сообщение в Telegram
+      await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        chat_id: TELEGRAM_CHAT_ID,
+        text,
+        parse_mode: 'HTML'
+      });
+      
+      console.log('✅ Сообщение от PolyAlert БОТ отправлено в Telegram');
+    }
+  } catch (error) {
+    console.error('❌ Ошибка при обработке альтернативного сообщения:', error.message);
+  }
+});
+
 // Обработчик готовности бота
 client.on('ready', async () => {
   console.log(`Бот ${client.user.tag} успешно запущен!`);
@@ -125,6 +148,8 @@ client.on('ready', async () => {
     }
   } catch (error) {
     console.error(`❌ Ошибка при проверке канала: ${error.message}`);
+    console.log(`⚠️ Бот будет продолжать работу, но может не получать сообщения из канала ${CHANNEL_ID}`);
+    console.log(`🔧 Убедитесь, что бот добавлен на сервер и имеет права на чтение канала`);
   }
   
   // Запускаем keep-alive механизм
