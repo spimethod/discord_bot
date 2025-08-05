@@ -71,27 +71,17 @@ server.listen(PORT, () => {
   console.log(`HTTP сервер запущен на порту ${PORT}`);
 });
 
-// Функция для получения последних сообщений через вебхук
+// Функция для получения последних сообщений через Discord API
 const getRecentMessages = async () => {
-  if (!WEBHOOK_URL) {
-    console.log('⚠️ WEBHOOK_URL не настроен, пропускаем получение сообщений');
-    return;
-  }
-
   try {
-    // Получаем информацию о вебхуке
-    const webhookInfo = await axios.get(WEBHOOK_URL);
-    console.log(`✅ Вебхук найден для канала: ${webhookInfo.data.channel_id}`);
-    
-    // Получаем последние сообщения из канала
-    const channelId = webhookInfo.data.channel_id;
-    const messages = await axios.get(`https://discord.com/api/v10/channels/${channelId}/messages?limit=10`, {
+    // Получаем последние сообщения из канала напрямую через API
+    const messages = await axios.get(`https://discord.com/api/v10/channels/${CHANNEL_ID}/messages?limit=10`, {
       headers: {
         'Authorization': `Bot ${DISCORD_TOKEN}`
       }
     });
     
-    console.log(`📨 Получено ${messages.data.length} последних сообщений`);
+    console.log(`📨 Получено ${messages.data.length} последних сообщений из канала ${CHANNEL_ID}`);
     
     // Обрабатываем сообщения
     for (const message of messages.data.reverse()) {
@@ -110,7 +100,7 @@ const getRecentMessages = async () => {
       }
     }
   } catch (error) {
-    console.error('❌ Ошибка при получении сообщений через вебхук:', error.message);
+    console.error('❌ Ошибка при получении сообщений через API:', error.message);
   }
 };
 
@@ -200,15 +190,13 @@ client.on('ready', async () => {
   startKeepAlive();
   console.log('Keep-alive механизм запущен');
   
-  // Запускаем мониторинг через вебхук
-  if (WEBHOOK_URL) {
-    console.log('🔄 Запуск мониторинга через вебхук...');
-    getRecentMessages();
-    
-    // Проверяем новые сообщения каждые 30 секунд
-    setInterval(getRecentMessages, 30000);
-    console.log('✅ Мониторинг через вебхук запущен (проверка каждые 30 секунд)');
-  }
+  // Запускаем мониторинг через Discord API
+  console.log('🔄 Запуск мониторинга через Discord API...');
+  getRecentMessages();
+  
+  // Проверяем новые сообщения каждые 30 секунд
+  setInterval(getRecentMessages, 30000);
+  console.log('✅ Мониторинг через Discord API запущен (проверка каждые 30 секунд)');
   
   // Отправляем уведомление в Telegram о запуске бота
   try {
