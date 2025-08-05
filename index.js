@@ -22,6 +22,7 @@ const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const CHANNEL_ID = process.env.CHANNEL_ID || 'ID_КАНАЛА_new-polymarkets';
+const WEBHOOK_URL = process.env.WEBHOOK_URL;
 
 // Список разрешенных ботов (опционально, оставьте пустым для всех ботов)
 const ALLOWED_BOTS = process.env.ALLOWED_BOTS ? process.env.ALLOWED_BOTS.split(',') : [];
@@ -69,6 +70,49 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`HTTP сервер запущен на порту ${PORT}`);
 });
+
+// Функция для получения последних сообщений через вебхук
+const getRecentMessages = async () => {
+  if (!WEBHOOK_URL) {
+    console.log('⚠️ WEBHOOK_URL не настроен, пропускаем получение сообщений');
+    return;
+  }
+
+  try {
+    // Получаем информацию о вебхуке
+    const webhookInfo = await axios.get(WEBHOOK_URL);
+    console.log(`✅ Вебхук найден для канала: ${webhookInfo.data.channel_id}`);
+    
+    // Получаем последние сообщения из канала
+    const channelId = webhookInfo.data.channel_id;
+    const messages = await axios.get(`https://discord.com/api/v10/channels/${channelId}/messages?limit=10`, {
+      headers: {
+        'Authorization': `Bot ${DISCORD_TOKEN}`
+      }
+    });
+    
+    console.log(`📨 Получено ${messages.data.length} последних сообщений`);
+    
+    // Обрабатываем сообщения
+    for (const message of messages.data.reverse()) {
+      if (message.author.username === 'PolyAlert БОТ' && message.content.includes('New Market:')) {
+        console.log(`🎯 Найдено сообщение от PolyAlert БОТ: ${message.content.substring(0, 100)}...`);
+        
+        const text = `🔔 Новое сообщение от БОТ ${message.author.username}:\n${message.content}`;
+        
+        await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+          chat_id: TELEGRAM_CHAT_ID,
+          text,
+          parse_mode: 'HTML'
+        });
+        
+        console.log('✅ Сообщение отправлено в Telegram');
+      }
+    }
+  } catch (error) {
+    console.error('❌ Ошибка при получении сообщений через вебхук:', error.message);
+  }
+};
 
 // Обработчик новых сообщений
 client.on('messageCreate', async (message) => {
@@ -155,6 +199,16 @@ client.on('ready', async () => {
   // Запускаем keep-alive механизм
   startKeepAlive();
   console.log('Keep-alive механизм запущен');
+  
+  // Запускаем мониторинг через вебхук
+  if (WEBHOOK_URL) {
+    console.log('🔄 Запуск мониторинга через вебхук...');
+    getRecentMessages();
+    
+    // Проверяем новые сообщения каждые 30 секунд
+    setInterval(getRecentMessages, 30000);
+    console.log('✅ Мониторинг через вебхук запущен (проверка каждые 30 секунд)');
+  }
   
   // Отправляем уведомление в Telegram о запуске бота
   try {
